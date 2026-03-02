@@ -9,7 +9,10 @@ use skill_tree::fs_util::Tool;
 use skill_tree::{init, linker, serve, tagger, tree, tui};
 
 #[derive(Parser)]
-#[command(name = "skill-tree", about = "Skill management tool for Claude Code & Codex")]
+#[command(
+    name = "skill-tree",
+    about = "Skill management tool for Claude Code & Codex"
+)]
 struct Cli {
     #[command(subcommand)]
     command: Option<Command>,
@@ -69,10 +72,7 @@ enum Command {
 
     /// Set tags for a skill (used internally by web UI)
     #[command(hide = true)]
-    Tag {
-        skill: String,
-        tags: Vec<String>,
-    },
+    Tag { skill: String, tags: Vec<String> },
 
     /// Print skill tree grouped by tags
     Tree,
@@ -120,7 +120,12 @@ fn dispatch(command: Command, paths: &Paths) -> Result<()> {
             linker::link_skill(paths, &project, &skill, tool)
         }
 
-        Command::Unlink { skill, all, path, tool } => {
+        Command::Unlink {
+            skill,
+            all,
+            path,
+            tool,
+        } => {
             let project = resolve_project(path)?;
             let tool: Tool = tool.parse()?;
             if all {
@@ -168,10 +173,7 @@ fn load_project_paths() -> Vec<String> {
     let Some(projects) = value.get("projects").and_then(|p| p.as_object()) else {
         return Vec::new();
     };
-    let mut paths: Vec<String> = projects
-        .keys()
-        .map(|k| k.to_string())
-        .collect();
+    let mut paths: Vec<String> = projects.keys().map(|k| k.to_string()).collect();
     paths.sort();
     paths
 }

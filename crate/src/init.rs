@@ -158,11 +158,19 @@ mod tests {
 
         let skill_dir = paths.skills_dir.join("my-skill");
         fs::create_dir_all(&skill_dir).unwrap();
-        fs::write(skill_dir.join("SKILL.md"), "---\nname: my-skill\n---\ncontent").unwrap();
+        fs::write(
+            skill_dir.join("SKILL.md"),
+            "---\nname: my-skill\n---\ncontent",
+        )
+        .unwrap();
 
         initialize(&paths).unwrap();
 
-        assert!(paths.skill_tree_dir.join("my-skill").join("SKILL.md").exists());
+        assert!(paths
+            .skill_tree_dir
+            .join("my-skill")
+            .join("SKILL.md")
+            .exists());
 
         let link_meta = fs::symlink_metadata(paths.skills_dir.join("my-skill")).unwrap();
         assert!(link_meta.file_type().is_symlink());

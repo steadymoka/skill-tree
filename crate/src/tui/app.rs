@@ -3,8 +3,8 @@ use std::io;
 
 use anyhow::Result;
 use crossterm::event::{self, Event, KeyCode, KeyModifiers};
-use crossterm::terminal::{self, EnterAlternateScreen, LeaveAlternateScreen};
 use crossterm::execute;
+use crossterm::terminal::{self, EnterAlternateScreen, LeaveAlternateScreen};
 use ratatui::prelude::*;
 
 use crate::config::Paths;
@@ -123,10 +123,7 @@ impl App {
     }
 
     pub(super) fn tags_for_skill(&self, skill: &str) -> &[String] {
-        self.tag_map
-            .get(skill)
-            .map(|v| v.as_slice())
-            .unwrap_or(&[])
+        self.tag_map.get(skill).map(|v| v.as_slice()).unwrap_or(&[])
     }
 
     pub(super) fn current_project(&self) -> Option<&str> {
@@ -233,7 +230,12 @@ impl App {
                     let skill = skill.to_string();
                     let project = project.to_string();
                     if !self.is_skill_linked(&project, &skill) {
-                        linker::link_skill(&self.paths, std::path::Path::new(&project), &skill, Tool::Claude)?;
+                        linker::link_skill(
+                            &self.paths,
+                            std::path::Path::new(&project),
+                            &skill,
+                            Tool::Claude,
+                        )?;
                         self.reload_project_links(&project);
                         self.status_msg =
                             format!("Linked {} → {}", skill, Self::project_name(&project));
@@ -363,8 +365,7 @@ impl App {
                     let project = project.to_string();
                     linker::unlink_all(std::path::Path::new(&project), Tool::Claude)?;
                     self.reload_project_links(&project);
-                    self.status_msg =
-                        format!("Unlinked all ← {}", Self::project_name(&project));
+                    self.status_msg = format!("Unlinked all ← {}", Self::project_name(&project));
                 }
             }
             _ => {}

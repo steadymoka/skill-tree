@@ -59,17 +59,23 @@ fn print_link(link: &ProjectLink) {
     let tools: Vec<&str> = link.tools.iter().map(|t| t.short_label()).collect();
     println!(
         "        {}→{}  {}{}{}  {}({}){}",
-        ansi::DIM, ansi::RESET,
-        ansi::GREEN, link.name, ansi::RESET,
-        ansi::DIM, tools.join(","), ansi::RESET,
+        ansi::DIM,
+        ansi::RESET,
+        ansi::GREEN,
+        link.name,
+        ansi::RESET,
+        ansi::DIM,
+        tools.join(","),
+        ansi::RESET,
     );
 }
 
 pub fn print_tree(paths: &Paths, project_paths: &[String]) -> Result<()> {
     let map = yaml::read_skills_yaml(&paths.skills_yaml)
         .context("skills.yaml not found — run `skill-tree init` first")?;
-    let central_dirs: HashSet<String> =
-        scanner::scan_skill_dirs(&paths.skill_tree_dir)?.into_iter().collect();
+    let central_dirs: HashSet<String> = scanner::scan_skill_dirs(&paths.skill_tree_dir)?
+        .into_iter()
+        .collect();
 
     let link_map = build_link_map(project_paths);
 
@@ -84,10 +90,7 @@ pub fn print_tree(paths: &Paths, project_paths: &[String]) -> Result<()> {
             untagged.push(skill.clone());
         } else {
             for tag in tags {
-                by_tag
-                    .entry(tag.clone())
-                    .or_default()
-                    .push(skill.clone());
+                by_tag.entry(tag.clone()).or_default().push(skill.clone());
             }
         }
     }
@@ -96,19 +99,20 @@ pub fn print_tree(paths: &Paths, project_paths: &[String]) -> Result<()> {
     let total_tags = by_tag.len();
     println!(
         "{}Skill Tree  ·  {} skills  ·  {} tags{}\n",
-        ansi::BOLD, total_skills, total_tags, ansi::RESET,
+        ansi::BOLD,
+        total_skills,
+        total_tags,
+        ansi::RESET,
     );
 
-    let print_skill = |skill: &str| {
-        match link_map.get(skill) {
-            Some(links) if !links.is_empty() => {
-                println!("    {}", skill);
-                for link in links {
-                    print_link(link);
-                }
+    let print_skill = |skill: &str| match link_map.get(skill) {
+        Some(links) if !links.is_empty() => {
+            println!("    {}", skill);
+            for link in links {
+                print_link(link);
             }
-            _ => println!("    {}", skill),
         }
+        _ => println!("    {}", skill),
     };
 
     let print_section = |tag: &str, skills: &[String]| {

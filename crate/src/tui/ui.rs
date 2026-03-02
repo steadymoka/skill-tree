@@ -52,7 +52,11 @@ fn render_header(frame: &mut Frame, area: Rect, app: &App) {
 
     let mut spans = vec![Span::styled(
         " All ",
-        if app.selected_tag == 0 { selected_style } else { unselected_style },
+        if app.selected_tag == 0 {
+            selected_style
+        } else {
+            unselected_style
+        },
     )];
 
     for (i, tag) in app.all_tags.iter().enumerate() {
@@ -69,11 +73,8 @@ fn render_header(frame: &mut Frame, area: Rect, app: &App) {
 }
 
 fn render_body(frame: &mut Frame, area: Rect, app: &App) {
-    let chunks = Layout::horizontal([
-        Constraint::Percentage(60),
-        Constraint::Percentage(40),
-    ])
-    .split(area);
+    let chunks =
+        Layout::horizontal([Constraint::Percentage(60), Constraint::Percentage(40)]).split(area);
 
     render_skills(frame, chunks[0], app);
     render_projects(frame, chunks[1], app);
@@ -104,7 +105,10 @@ fn render_skills(frame: &mut Frame, area: Rect, app: &App) {
                     Span::styled(" ▸ ", Style::new().fg(Color::Yellow)),
                     Span::styled(skill, Style::new().fg(Color::Yellow)),
                     Span::styled("  ", Style::new()),
-                    Span::styled(&state.input, Style::new().bg(Color::DarkGray).fg(Color::White)),
+                    Span::styled(
+                        &state.input,
+                        Style::new().bg(Color::DarkGray).fg(Color::White),
+                    ),
                     Span::styled("▎", Style::new().fg(Color::Yellow)),
                 ]));
             }
@@ -134,7 +138,11 @@ fn render_skills(frame: &mut Frame, area: Rect, app: &App) {
             ListItem::new(Line::from(vec![
                 Span::styled(
                     format!(" {} ", marker),
-                    if linked && !is_selected { Style::new().fg(Color::Green) } else { base },
+                    if linked && !is_selected {
+                        Style::new().fg(Color::Green)
+                    } else {
+                        base
+                    },
                 ),
                 Span::styled(skill, base),
                 Span::styled(tag_str, tag_style),
@@ -142,8 +150,15 @@ fn render_skills(frame: &mut Frame, area: Rect, app: &App) {
         })
         .collect();
 
-    let title = if editing { " Skills (editing tags) " } else { " Skills " };
-    frame.render_widget(List::new(items).block(panel_block(title, focused || editing)), area);
+    let title = if editing {
+        " Skills (editing tags) "
+    } else {
+        " Skills "
+    };
+    frame.render_widget(
+        List::new(items).block(panel_block(title, focused || editing)),
+        area,
+    );
 }
 
 fn render_projects(frame: &mut Frame, area: Rect, app: &App) {
@@ -181,7 +196,10 @@ fn render_projects(frame: &mut Frame, area: Rect, app: &App) {
         })
         .collect();
 
-    frame.render_widget(List::new(items).block(panel_block(" Projects ", focused)), area);
+    frame.render_widget(
+        List::new(items).block(panel_block(" Projects ", focused)),
+        area,
+    );
 }
 
 fn render_status(frame: &mut Frame, area: Rect, app: &App) {
