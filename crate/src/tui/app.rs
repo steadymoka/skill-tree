@@ -139,7 +139,7 @@ impl App {
     pub(super) fn is_skill_linked(&self, project: &str, skill: &str) -> bool {
         self.project_links
             .get(project)
-            .map_or(false, |set| set.contains(skill))
+            .is_some_and(|set| set.contains(skill))
     }
 
     fn clamp_selections(&mut self) {
@@ -351,7 +351,7 @@ impl App {
                         linker::link_by_tags(
                             &self.paths,
                             std::path::Path::new(&project),
-                            &[tag.clone()],
+                            std::slice::from_ref(&tag),
                             Tool::Claude,
                         )?;
                         self.reload_project_links(&project);

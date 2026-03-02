@@ -90,14 +90,14 @@ fn render_skills(frame: &mut Frame, area: Rect, app: &App) {
         .iter()
         .enumerate()
         .map(|(i, &skill)| {
-            let linked = current_project.map_or(false, |p| app.is_skill_linked(p, skill));
+            let linked = current_project.is_some_and(|p| app.is_skill_linked(p, skill));
             let is_selected = i == app.selected_skill && focused;
 
             // Check if this skill is being edited
             let is_editing = app
                 .editing_tags
                 .as_ref()
-                .map_or(false, |e| e.skill_name == skill);
+                .is_some_and(|e| e.skill_name == skill);
 
             if is_editing {
                 let state = app.editing_tags.as_ref().unwrap();
