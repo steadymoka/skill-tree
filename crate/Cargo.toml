@@ -1,6 +1,6 @@
 [package]
 name = "skill-tree"
-version = "0.1.1"
+version = "0.1.2"
 edition = "2021"
 description = "Manage and visualize AI coding agent skill trees from the terminal"
 repository = "https://github.com/steadymoka/skill-tree"
