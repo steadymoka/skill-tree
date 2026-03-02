@@ -1,6 +1,5 @@
 use std::env;
 use std::net::{SocketAddr, TcpListener, TcpStream};
-use std::os::unix::fs as unix_fs;
 use std::path::{Path, PathBuf};
 use std::process::{Command, Stdio};
 use std::time::{Duration, Instant};
@@ -19,13 +18,27 @@ fn ensure_static_assets(root: &Path) {
     let static_link = standalone.join(".next").join("static");
     let static_src = root.join(".next").join("static");
     if !static_link.exists() && static_src.exists() {
-        let _ = unix_fs::symlink(&static_src, &static_link);
+        let _ = symlink(&static_src, &static_link);
     }
 
     let public_link = standalone.join("public");
     let public_src = root.join("public");
     if !public_link.exists() && public_src.exists() {
-        let _ = unix_fs::symlink(&public_src, &public_link);
+        let _ = symlink(&public_src, &public_link);
+    }
+}
+
+#[cfg(unix)]
+fn symlink(src: &Path, dst: &Path) -> std::io::Result<()> {
+    std::os::unix::fs::symlink(src, dst)
+}
+
+#[cfg(windows)]
+fn symlink(src: &Path, dst: &Path) -> std::io::Result<()> {
+    if src.is_dir() {
+        std::os::windows::fs::symlink_dir(src, dst)
+    } else {
+        std::os::windows::fs::symlink_file(src, dst)
     }
 }
 
