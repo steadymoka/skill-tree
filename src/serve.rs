@@ -130,5 +130,7 @@ fn infer_project_root() -> Result<PathBuf> {
         }
     }
 
-    bail!("cannot find project root with web/.next/standalone/. Pass --root or cd into the project.")
+    bail!(
+        "cannot find project root with web/.next/standalone/. Pass --root or cd into the project."
+    )
 }
