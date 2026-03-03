@@ -1,5 +1,5 @@
 {
-  "name": "skilltree",
+  "name": "@steadymoka/skilltree",
   "version": "0.0.0",
   "description": "Manage and visualize AI coding agent skill trees from the terminal",
   "license": "MIT",
