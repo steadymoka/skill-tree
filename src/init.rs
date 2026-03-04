@@ -45,6 +45,14 @@ done
 echo "Done. $linked skill(s) linked."
 "#;
 
+/// Auto-initialize if ~/.skilltree/ does not exist yet.
+pub fn ensure_initialized(paths: &Paths) -> Result<()> {
+    if paths.skill_tree_dir.exists() {
+        return Ok(());
+    }
+    initialize(paths)
+}
+
 pub fn initialize(paths: &Paths) -> Result<()> {
     let central = &paths.skill_tree_dir;
     let skills = &paths.skills_dir;
@@ -215,6 +223,41 @@ mod tests {
         assert_eq!(updated.len(), 2);
         assert_eq!(updated["skill-a"], vec!["tag1".to_string()]);
         assert!(updated["skill-b"].is_empty());
+    }
+
+    #[test]
+    fn ensure_initialized_skips_if_exists() {
+        let tmp = TempDir::new().unwrap();
+        let paths = test_paths(&tmp);
+        fs::create_dir_all(&paths.skill_tree_dir).unwrap();
+        fs::write(&paths.skills_yaml, "{}").unwrap();
+
+        ensure_initialized(&paths).unwrap();
+
+        // Should not create link-skills.sh (no full init ran)
+        assert!(!paths.link_skills_sh.exists());
+    }
+
+    #[test]
+    fn ensure_initialized_creates_if_missing() {
+        let tmp = TempDir::new().unwrap();
+        let paths = test_paths(&tmp);
+
+        ensure_initialized(&paths).unwrap();
+
+        assert!(paths.skill_tree_dir.exists());
+        assert!(paths.skills_yaml.exists());
+    }
+
+    #[test]
+    fn ensure_initialized_is_idempotent() {
+        let tmp = TempDir::new().unwrap();
+        let paths = test_paths(&tmp);
+
+        ensure_initialized(&paths).unwrap();
+        ensure_initialized(&paths).unwrap();
+
+        assert!(paths.skill_tree_dir.exists());
     }
 
     #[test]

@@ -104,7 +104,7 @@ fn resolve_name(opts: &AddOpts, repo: &str) -> String {
     }
     if let Some(ref skill) = opts.skill {
         // Take the last path component as name
-        return skill.rsplit('/').next().unwrap_or(skill).to_string();
+        return crate::fs_util::basename(skill).to_string();
     }
     repo.to_string()
 }

@@ -140,7 +140,7 @@ fn render_project_list(frame: &mut Frame, area: Rect, app: &mut App) {
         .project_paths
         .iter()
         .map(|path| {
-            let name = App::project_name(path);
+            let name = crate::fs_util::basename(path);
             let count = app.linked_count(path);
 
             let count_style = if count > 0 {

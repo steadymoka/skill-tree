@@ -188,7 +188,7 @@ impl App {
         };
 
         let project_path = std::path::Path::new(&project);
-        let project_name = Self::project_name(&project);
+        let project_name = crate::fs_util::basename(&project);
 
         match row {
             TreeRow::TagHeader { tag, .. } => {

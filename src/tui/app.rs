@@ -233,10 +233,6 @@ impl App {
             .collect()
     }
 
-    pub(super) fn project_name(path: &str) -> &str {
-        path.rsplit('/').next().unwrap_or(path)
-    }
-
     pub(super) fn clamp_all_selections(&mut self) {
         let skill_len = self.skill_dirs.len();
         if skill_len > 0 && self.skills_state.selected_skill >= skill_len {

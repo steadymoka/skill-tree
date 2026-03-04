@@ -8,7 +8,7 @@ use skilltree::config::Paths;
 use skilltree::fs_util::Tool;
 use skilltree::git::RealGitClient;
 use skilltree::http::UreqHttpClient;
-use skilltree::{adder, finder, init, linker, serve, tagger, tree, tui, updater};
+use skilltree::{adder, finder, info, init, linker, remover, serve, tagger, tree, tui, updater};
 
 #[derive(Parser)]
 #[command(
@@ -25,25 +25,14 @@ enum Command {
     /// Initialize skilltree (idempotent)
     Init,
 
-    /// Link skills to the current project by tags
+    /// Link skills to the current project by tags or skill name
     Link {
         /// Tags to match (union)
-        #[arg(required = true)]
         tags: Vec<String>,
 
-        /// Project path (defaults to CWD)
+        /// Link a single skill by name
         #[arg(long, short)]
-        path: Option<PathBuf>,
-
-        /// Target tool (claude or codex)
-        #[arg(long, short, default_value = "claude")]
-        tool: String,
-    },
-
-    /// Link a single skill by name
-    LinkSkill {
-        /// Skill directory name
-        skill: String,
+        skill: Option<String>,
 
         /// Project path (defaults to CWD)
         #[arg(long, short)]
@@ -51,7 +40,7 @@ enum Command {
 
         /// Target tool (claude or codex)
         #[arg(long, short, default_value = "claude")]
-        tool: String,
+        tool: Tool,
     },
 
     /// Unlink a skill from the current project
@@ -69,11 +58,10 @@ enum Command {
 
         /// Target tool (claude or codex)
         #[arg(long, short, default_value = "claude")]
-        tool: String,
+        tool: Tool,
     },
 
-    /// Set tags for a skill (used internally by web UI)
-    #[command(hide = true)]
+    /// Set tags for a skill
     Tag { skill: String, tags: Vec<String> },
 
     /// Add a skill from GitHub
@@ -103,7 +91,7 @@ enum Command {
     },
 
     /// Search for skills on GitHub
-    Find {
+    Search {
         /// Search query
         query: String,
 
@@ -118,7 +106,20 @@ enum Command {
         skill: Option<String>,
     },
 
+    /// Remove an installed skill completely
+    Remove {
+        /// Skill name to remove
+        name: String,
+    },
+
+    /// Show details for an installed skill
+    Info {
+        /// Skill name
+        name: String,
+    },
+
     /// Print skill tree grouped by tags
+    #[command(alias = "list")]
     Tree,
 
     /// Start the web UI (Next.js standalone server)
@@ -134,6 +135,7 @@ fn main() -> Result<()> {
 
     let Some(command) = cli.command else {
         let paths = Paths::default_paths()?;
+        init::ensure_initialized(&paths)?;
         let project_paths = load_project_paths();
         return tui::run(paths, project_paths);
     };
@@ -149,6 +151,10 @@ fn main() -> Result<()> {
 }
 
 fn dispatch(command: Command, paths: &Paths) -> Result<()> {
+    if !matches!(command, Command::Init) {
+        init::ensure_initialized(paths)?;
+    }
+
     match command {
         Command::Init => init::initialize(paths),
 
@@ -175,7 +181,7 @@ fn dispatch(command: Command, paths: &Paths) -> Result<()> {
             Ok(())
         }
 
-        Command::Find { query, limit } => {
+        Command::Search { query, limit } => {
             let http = UreqHttpClient;
             let opts = finder::FindOpts { query, limit };
             let results = finder::find_skills(&opts, &http)?;
@@ -211,19 +217,25 @@ fn dispatch(command: Command, paths: &Paths) -> Result<()> {
             Ok(())
         }
 
-        Command::Link { tags, path, tool } => {
+        Command::Link {
+            tags,
+            skill,
+            path,
+            tool,
+        } => {
             let project = resolve_project(path)?;
-            let tool: Tool = tool.parse()?;
-            let linked = linker::link_by_tags(paths, &project, &tags, tool)?;
-            println!("Done. {} skill(s) linked.", linked);
-            Ok(())
-        }
-
-        Command::LinkSkill { skill, path, tool } => {
-            let project = resolve_project(path)?;
-            let tool: Tool = tool.parse()?;
-            linker::link_skill(paths, &project, &skill, tool)?;
-            println!("Linked: {}", skill);
+            if let Some(name) = skill {
+                if !tags.is_empty() {
+                    anyhow::bail!("specify either tags or --skill, not both");
+                }
+                linker::link_skill(paths, &project, &name, tool)?;
+                println!("Linked: {}", name);
+            } else if tags.is_empty() {
+                anyhow::bail!("specify tags or --skill <name>");
+            } else {
+                let linked = linker::link_by_tags(paths, &project, &tags, tool)?;
+                println!("Done. {} skill(s) linked.", linked);
+            }
             Ok(())
         }
 
@@ -234,7 +246,6 @@ fn dispatch(command: Command, paths: &Paths) -> Result<()> {
             tool,
         } => {
             let project = resolve_project(path)?;
-            let tool: Tool = tool.parse()?;
             if all {
                 let removed = linker::unlink_all(&project, tool)?;
                 println!("Done. {} skill(s) unlinked.", removed);
@@ -252,6 +263,18 @@ fn dispatch(command: Command, paths: &Paths) -> Result<()> {
             tagger::set_tags(paths, &skill, &tags)?;
             println!("{}: [{}]", skill, tags.join(", "));
             Ok(())
+        }
+
+        Command::Remove { name } => {
+            let project_paths = load_project_paths();
+            remover::remove_skill(paths, &name, &project_paths)?;
+            println!("Removed: {}", name);
+            Ok(())
+        }
+
+        Command::Info { name } => {
+            let project_paths = load_project_paths();
+            info::print_info(paths, &name, &project_paths)
         }
 
         Command::Tree => {

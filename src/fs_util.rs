@@ -3,6 +3,8 @@ use std::str::FromStr;
 
 use anyhow::Result;
 
+pub const ALL_TOOLS: [Tool; 2] = [Tool::Claude, Tool::Codex];
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum Tool {
     Claude,
@@ -38,10 +40,7 @@ impl FromStr for Tool {
 
 impl std::fmt::Display for Tool {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            Tool::Claude => write!(f, "claude"),
-            Tool::Codex => write!(f, "codex"),
-        }
+        f.write_str(self.short_label())
     }
 }
 
@@ -56,11 +55,10 @@ pub fn create_symlink(_original: &Path, _link: &Path) -> Result<()> {
     anyhow::bail!("symlinks are only supported on Unix systems");
 }
 
+pub fn basename(path: &str) -> &str {
+    path.rsplit('/').next().unwrap_or(path)
+}
+
 pub fn project_skills_dir(project_path: &Path, tool: Tool) -> std::path::PathBuf {
-    let parts: Vec<&str> = tool.skills_subdir().split('/').collect();
-    let mut path = project_path.to_path_buf();
-    for part in parts {
-        path = path.join(part);
-    }
-    path
+    project_path.join(tool.skills_subdir())
 }
