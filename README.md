@@ -50,16 +50,16 @@ Switch between three screens with `1`, `2`, and `3`. The focused panel is highli
 Organize your skills with tags. Select a skill on the left, toggle tags on the right.
 
 ```
- Skill Tree   12 skills  5 tags    1:Skills  2:Claude  3:Codex
-╭─ Skills ─────────────────────╮╭─ Tags ───────────────────────╮
-│ ▸ auth-middleware  [api,sec] ││   [✓] api                    │
-│   db-migrations    [db]      ││   [ ] db                     │
-│   error-handling   [api]     ││   [ ] frontend               │
-│   graphql-setup              ││   [✓] sec                    │
-│   react-patterns   [frontend]││   [ ] testing                │
-│   test-helpers     [testing] ││                              │
-╰──────────────────────────────╯╰──────────────────────────────╯
- 1/2/3:screen  ←→:focus  ↑↓:select  Space:toggle  a:new tag  q:quit
+ Skill Tree   12 skills  5 tags       1:Skills  2:Claude  3:Codex
++- Skills -------------------------+ +- Tags ---------------------------+
+| > auth-middleware  [api,sec]      | |   [x] api                       |
+|   db-migrations    [db]           | |   [ ] db                        |
+|   error-handling   [api]          | |   [ ] frontend                  |
+|   graphql-setup                   | |   [x] sec                       |
+|   react-patterns   [frontend]     | |   [ ] testing                   |
+|   test-helpers     [testing]      | |                                 |
++-----------------------------------+ +-----------------------------------+
+ 1/2/3:screen  <->:focus  up/dn:select  Space:toggle  a:new tag  q:quit
 ```
 
 ### Screen 2/3 — Claude / Codex Projects
@@ -67,18 +67,18 @@ Organize your skills with tags. Select a skill on the left, toggle tags on the r
 Link skills to projects per agent. Select a project on the left, then toggle skills or entire tag groups on the right.
 
 ```
- Skill Tree   12 skills  5 tags    1:Skills  2:Claude  3:Codex
-╭─ Projects ───────────────────╮╭─ Skills by Tag ──────────────╮
-│ ▸ my-api         3 linked    ││ ▾ [✓] api                 2  │
-│   web-app        1 linked    ││     [✓] auth-middleware       │
-│   mobile-app     0 linked    ││     [✓] error-handling        │
-│                               ││ ▸ [ ] db                  1  │
-│                               ││ ▾ [-] sec                 1  │
-│                               ││     [✓] auth-middleware       │
-│                               ││ ── no tag ──                 │
-│                               ││     [ ] graphql-setup         │
-╰──────────────────────────────╯╰──────────────────────────────╯
- 1/2/3:screen  ←→:focus  ↑↓:select  Space:link/unlink  Enter:fold  q:quit
+ Skill Tree   12 skills  5 tags       1:Skills  2:Claude  3:Codex
++- Projects -----------------------+ +- Skills by Tag --------------------+
+| > my-api         3 linked        | | v [x] api                    2    |
+|   web-app        1 linked        | |     [x] auth-middleware            |
+|   mobile-app     0 linked        | |     [x] error-handling             |
+|                                  | | > [ ] db                     1    |
+|                                  | | v [-] sec                    1    |
+|                                  | |     [x] auth-middleware            |
+|                                  | | -- no tag --                       |
+|                                  | |     [ ] graphql-setup              |
++----------------------------------+ +--------------------------------------+
+ 1/2/3:screen  <->:focus  up/dn:select  Space:link/unlink  Enter:fold  q:quit
 ```
 
 ### Keybindings
@@ -86,8 +86,8 @@ Link skills to projects per agent. Select a project on the left, then toggle ski
 | Key | Action |
 |:---:|--------|
 | `1` `2` `3` | Switch screen |
-| `←` `→` | Switch panel focus |
-| `↑` `↓` `j` `k` | Navigate |
+| `Left` `Right` | Switch panel focus |
+| `Up` `Down` `j` `k` | Navigate |
 | `Space` | Toggle tag / link |
 | `Enter` | Fold/unfold tag group |
 | `a` | Add new tag |
