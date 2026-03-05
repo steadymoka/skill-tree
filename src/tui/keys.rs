@@ -23,25 +23,36 @@ impl App {
                 self.screen = Screen::Skills;
                 self.panel = Panel::Left;
             }
-            KeyCode::Char('2') => {
-                self.screen = Screen::Projects;
-                self.panel = Panel::Left;
-                self.rebuild_tree();
-            }
-            KeyCode::Tab | KeyCode::BackTab => {
+            KeyCode::Char('2') => self.switch_projects_screen(Screen::Claude),
+            KeyCode::Char('3') => self.switch_projects_screen(Screen::Codex),
+            KeyCode::Left | KeyCode::Right => {
                 self.panel = match self.panel {
                     Panel::Left => Panel::Right,
                     Panel::Right => Panel::Left,
                 };
             }
-            _ => match self.screen {
-                Screen::Skills => self.handle_skills_screen_key(code)?,
-                Screen::Projects => self.handle_projects_screen_key(code)?,
-            },
+            _ => {
+                if self.screen.is_projects() {
+                    self.handle_projects_screen_key(code)?;
+                } else {
+                    self.handle_skills_screen_key(code)?;
+                }
+            }
         }
 
         self.clamp_all_selections();
         Ok(())
+    }
+
+    fn switch_projects_screen(&mut self, screen: Screen) {
+        debug_assert!(screen.is_projects());
+        if self.screen == screen {
+            return;
+        }
+        self.screen = screen;
+        self.panel = Panel::Left;
+        self.reload_all_project_links();
+        self.rebuild_tree();
     }
 
     // ── Screen 1: Skills & Tags ──
@@ -126,10 +137,6 @@ impl App {
     // ── Screen 2: Projects ──
 
     fn handle_projects_screen_key(&mut self, code: KeyCode) -> Result<()> {
-        if code == KeyCode::Char('t') {
-            self.toggle_tool();
-            return Ok(());
-        }
         match self.panel {
             Panel::Left => self.handle_project_list_key(code),
             Panel::Right => self.handle_tree_key(code),
@@ -200,7 +207,7 @@ impl App {
 
                 if all_linked {
                     for skill in skills {
-                        linker::unlink_skill(project_path, skill, self.selected_tool)?;
+                        linker::unlink_skill(project_path, skill, self.screen.tool())?;
                     }
                     self.status_msg = format!("Unlinked [{}] from {}", tag, project_name);
                 } else {
@@ -208,7 +215,7 @@ impl App {
                         &self.paths,
                         project_path,
                         std::slice::from_ref(&tag),
-                        self.selected_tool,
+                        self.screen.tool(),
                     )?;
                     self.status_msg =
                         format!("Linked [{}] to {} ({} skills)", tag, project_name, count);
@@ -217,10 +224,10 @@ impl App {
             }
             TreeRow::Skill { skill } | TreeRow::UntaggedSkill { skill } => {
                 if self.is_skill_linked_to_selected(&skill) {
-                    linker::unlink_skill(project_path, &skill, self.selected_tool)?;
+                    linker::unlink_skill(project_path, &skill, self.screen.tool())?;
                     self.status_msg = format!("Unlinked {} from {}", skill, project_name);
                 } else {
-                    linker::link_skill(&self.paths, project_path, &skill, self.selected_tool)?;
+                    linker::link_skill(&self.paths, project_path, &skill, self.screen.tool())?;
                     self.status_msg = format!("Linked {} to {}", skill, project_name);
                 }
                 self.reload_project_links(&project);
@@ -307,5 +314,90 @@ impl App {
             _ => {}
         }
         Ok(())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use crossterm::event::KeyModifiers;
+
+    use super::*;
+    use crate::fs_util::Tool;
+
+    #[test]
+    fn key_1_switches_to_skills_screen() {
+        let mut app = App::new_test();
+        app.screen = Screen::Claude;
+        app.handle_key(KeyCode::Char('1'), KeyModifiers::NONE)
+            .unwrap();
+        assert_eq!(app.screen, Screen::Skills);
+        assert_eq!(app.panel, Panel::Left);
+    }
+
+    #[test]
+    fn key_2_switches_to_claude_screen() {
+        let mut app = App::new_test();
+        app.handle_key(KeyCode::Char('2'), KeyModifiers::NONE)
+            .unwrap();
+        assert_eq!(app.screen, Screen::Claude);
+        assert_eq!(app.screen.tool(), Tool::Claude);
+    }
+
+    #[test]
+    fn key_3_switches_to_codex_screen() {
+        let mut app = App::new_test();
+        app.handle_key(KeyCode::Char('3'), KeyModifiers::NONE)
+            .unwrap();
+        assert_eq!(app.screen, Screen::Codex);
+        assert_eq!(app.screen.tool(), Tool::Codex);
+    }
+
+    #[test]
+    fn right_arrow_switches_panel_to_right() {
+        let mut app = App::new_test();
+        assert_eq!(app.panel, Panel::Left);
+        app.handle_key(KeyCode::Right, KeyModifiers::NONE).unwrap();
+        assert_eq!(app.panel, Panel::Right);
+    }
+
+    #[test]
+    fn left_arrow_switches_panel_to_left() {
+        let mut app = App::new_test();
+        app.panel = Panel::Right;
+        app.handle_key(KeyCode::Left, KeyModifiers::NONE).unwrap();
+        assert_eq!(app.panel, Panel::Left);
+    }
+
+    #[test]
+    fn screen_tool_returns_correct_tool() {
+        assert_eq!(Screen::Claude.tool(), Tool::Claude);
+        assert_eq!(Screen::Codex.tool(), Tool::Codex);
+    }
+
+    #[test]
+    fn screen_is_projects() {
+        assert!(!Screen::Skills.is_projects());
+        assert!(Screen::Claude.is_projects());
+        assert!(Screen::Codex.is_projects());
+    }
+
+    #[test]
+    fn q_key_quits() {
+        let mut app = App::new_test();
+        app.handle_key(KeyCode::Char('q'), KeyModifiers::NONE)
+            .unwrap();
+        assert!(app.should_quit);
+    }
+
+    #[test]
+    fn text_input_ignores_screen_keys() {
+        let mut app = App::new_test();
+        app.text_input = Some(TextInputState {
+            input: String::new(),
+            cursor: 0,
+        });
+        app.handle_key(KeyCode::Char('2'), KeyModifiers::NONE)
+            .unwrap();
+        assert_eq!(app.screen, Screen::Skills);
     }
 }

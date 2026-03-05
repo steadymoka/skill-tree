@@ -18,7 +18,22 @@ use super::ui;
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Screen {
     Skills,
-    Projects,
+    Claude,
+    Codex,
+}
+
+impl Screen {
+    pub(super) fn tool(self) -> Tool {
+        match self {
+            Screen::Claude => Tool::Claude,
+            Screen::Codex => Tool::Codex,
+            Screen::Skills => unreachable!("tool() called on Skills screen"),
+        }
+    }
+
+    pub(super) fn is_projects(self) -> bool {
+        matches!(self, Screen::Claude | Screen::Codex)
+    }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -66,7 +81,6 @@ pub struct App {
 
     pub(super) screen: Screen,
     pub(super) panel: Panel,
-    pub(super) selected_tool: Tool,
     pub(super) status_msg: String,
     pub(super) should_quit: bool,
 
@@ -91,7 +105,6 @@ impl App {
 
             screen: Screen::Skills,
             panel: Panel::Left,
-            selected_tool: Tool::Claude,
             status_msg: String::new(),
             should_quit: false,
 
@@ -128,31 +141,26 @@ impl App {
         }
         self.all_tags = tags.into_iter().collect();
 
-        self.reload_all_project_links();
+        if self.screen.is_projects() {
+            self.reload_all_project_links();
+        }
         self.rebuild_tree();
         self.sync_list_states();
         Ok(())
     }
 
     pub(super) fn reload_project_links(&mut self, project: &str) {
-        let linked = scanner::scan_linked_skills(std::path::Path::new(project), self.selected_tool);
+        let linked = scanner::scan_linked_skills(std::path::Path::new(project), self.screen.tool());
         self.project_links
             .insert(project.to_string(), linked.into_iter().collect());
     }
 
-    fn reload_all_project_links(&mut self) {
+    pub(super) fn reload_all_project_links(&mut self) {
         self.project_links.clear();
         let paths = self.project_paths.clone();
         for p in &paths {
             self.reload_project_links(p);
         }
-    }
-
-    pub(super) fn toggle_tool(&mut self) {
-        self.selected_tool = self.selected_tool.next();
-        self.status_msg = format!("Switched to {}", self.selected_tool);
-        self.reload_all_project_links();
-        self.sync_list_states();
     }
 
     pub(super) fn rebuild_tree(&mut self) {
@@ -307,6 +315,41 @@ impl Drop for TerminalGuard {
     fn drop(&mut self) {
         let _ = terminal::disable_raw_mode();
         let _ = execute!(io::stdout(), LeaveAlternateScreen);
+    }
+}
+
+#[cfg(test)]
+impl App {
+    pub(super) fn new_test() -> Self {
+        App {
+            paths: Paths::from_home(std::path::Path::new("/tmp/test")),
+            tag_map: BTreeMap::new(),
+            all_tags: Vec::new(),
+            skill_dirs: Vec::new(),
+            skill_dir_set: HashSet::new(),
+            project_paths: vec!["proj1".into()],
+            project_links: BTreeMap::new(),
+            screen: Screen::Skills,
+            panel: Panel::Left,
+            status_msg: String::new(),
+            should_quit: false,
+            skills_state: SkillsScreenState {
+                selected_skill: 0,
+                selected_tag: 0,
+                skill_list_state: ListState::default(),
+                tag_list_state: ListState::default(),
+            },
+            projects_state: ProjectsScreenState {
+                selected_project: 0,
+                tree_cursor: 0,
+                collapsed_tags: HashSet::new(),
+                tree_list_state: ListState::default(),
+                project_list_state: ListState::default(),
+            },
+            text_input: None,
+            tree_rows: Vec::new(),
+            tag_skills: BTreeMap::new(),
+        }
     }
 }
 

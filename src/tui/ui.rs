@@ -17,9 +17,10 @@ pub fn render(frame: &mut Frame, app: &mut App) {
 
     render_tab_bar(frame, outer[0], app);
 
-    match app.screen {
-        Screen::Skills => ui_skills::render(frame, outer[1], app),
-        Screen::Projects => ui_projects::render(frame, outer[1], app),
+    if app.screen.is_projects() {
+        ui_projects::render(frame, outer[1], app);
+    } else {
+        ui_skills::render(frame, outer[1], app);
     }
 
     render_status_bar(frame, outer[2], app);
@@ -32,19 +33,7 @@ pub fn render(frame: &mut Frame, app: &mut App) {
 fn render_tab_bar(frame: &mut Frame, area: Rect, app: &App) {
     let active = Style::new().fg(Color::White).bg(Color::Blue).bold();
     let inactive = Style::new().fg(Color::DarkGray);
-
-    let skills_style = if app.screen == Screen::Skills {
-        active
-    } else {
-        inactive
-    };
-    let projects_style = if app.screen == Screen::Projects {
-        active
-    } else {
-        inactive
-    };
-
-    let projects_label = format!(" 2:Projects [{}] ", app.selected_tool);
+    let tab_style = |s: Screen| if app.screen == s { active } else { inactive };
 
     let line = Line::from(vec![
         Span::styled(" Skill Tree ", Style::new().fg(Color::White).bold()),
@@ -57,9 +46,11 @@ fn render_tab_bar(frame: &mut Frame, area: Rect, app: &App) {
             Style::new().fg(Color::DarkGray),
         ),
         Span::raw("  "),
-        Span::styled(" 1:Skills ", skills_style),
+        Span::styled(" 1:Skills ", tab_style(Screen::Skills)),
         Span::raw(" "),
-        Span::styled(projects_label, projects_style),
+        Span::styled(" 2:Claude ", tab_style(Screen::Claude)),
+        Span::raw(" "),
+        Span::styled(" 3:Codex ", tab_style(Screen::Codex)),
     ]);
 
     frame.render_widget(Paragraph::new(line), area);
@@ -68,11 +59,10 @@ fn render_tab_bar(frame: &mut Frame, area: Rect, app: &App) {
 fn render_status_bar(frame: &mut Frame, area: Rect, app: &App) {
     let help = if app.text_input.is_some() {
         " Enter:save  Esc:cancel"
+    } else if app.screen.is_projects() {
+        " 1/2/3:screen  \u{2190}\u{2192}:focus  \u{2191}\u{2193}:select  Space:link/unlink  Enter:fold  q:quit"
     } else {
-        match app.screen {
-            Screen::Skills => " 1/2:screen  Tab:focus  \u{2191}\u{2193}:select  Space:toggle  a:new tag  q:quit",
-            Screen::Projects => " 1/2:screen  Tab:focus  \u{2191}\u{2193}:select  Space:link/unlink  Enter:fold  t:tool  q:quit",
-        }
+        " 1/2/3:screen  \u{2190}\u{2192}:focus  \u{2191}\u{2193}:select  Space:toggle  a:new tag  q:quit"
     };
 
     let line = if app.status_msg.is_empty() {

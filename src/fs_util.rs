@@ -12,13 +12,6 @@ pub enum Tool {
 }
 
 impl Tool {
-    pub fn next(self) -> Self {
-        match self {
-            Tool::Claude => Tool::Codex,
-            Tool::Codex => Tool::Claude,
-        }
-    }
-
     pub fn skills_subdir(&self) -> &'static str {
         match self {
             Tool::Claude => ".claude/skills",
