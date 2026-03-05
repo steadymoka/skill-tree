@@ -20,7 +20,7 @@
 
 ```bash
 npm i -g @steadymoka/skilltree   # install
-skilltree init                    # set up ~/.skilltree/
+skilltree init                    # set up ~/.skilltree/ (migrates from .claude/.codex/.agents)
 skilltree add owner/repo          # install a skill from GitHub
 skilltree link <tags...>          # link skills to your project
 skilltree                         # launch TUI
@@ -123,8 +123,8 @@ skilltree unlink --all                # Unlink all skills
 ```bash
 skilltree init                        # Initialize ~/.skilltree/
 skilltree tree                        # Print skill tree (alias: list)
-skilltree doctor                      # Check health & broken symlinks
-skilltree doctor --fix                # Auto-fix detected issues
+skilltree doctor                      # Check health & detect issues
+skilltree doctor --fix                # Auto-fix all detected issues
 skilltree serve                       # Open web dashboard
 ```
 
@@ -154,6 +154,18 @@ skilltree serve                       # Open web dashboard
 ```
 
 Skills live in one place (`~/.skilltree/`). Projects reference them via **symlinks** — no duplication, always up to date. Install skills from GitHub with `skilltree add`, or create your own locally. Tags let you group related skills and link them in bulk.
+
+### Doctor
+
+`skilltree doctor` checks the health of your setup:
+
+- **Ghost entries** — skills.yaml references a skill directory that doesn't exist
+- **Unregistered directories** — skill directory exists but isn't in skills.yaml
+- **Lock orphans** — .skill-lock.json references a removed skill
+- **Unmanaged skills** — real directories or external symlinks in `~/.claude/skills/`, `~/.codex/skills/`, or `~/.agents/skills/` that aren't managed by skilltree
+- **Broken symlinks** — dead symlinks in project skill directories
+
+Run `skilltree doctor --fix` to auto-fix all detected issues. Unmanaged skills are adopted into `~/.skilltree/` and replaced with symlinks.
 
 <br>
 

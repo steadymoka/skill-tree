@@ -82,6 +82,52 @@ pub fn scan_linked_skills(project_path: &Path, tool: Tool) -> Vec<String> {
     names
 }
 
+/// Find entries in each tool's skills path that are NOT managed by skilltree.
+/// An entry is "managed" only if it is a symlink pointing to ~/.skilltree/<name>.
+pub fn scan_unmanaged_skills(home: &Path) -> Result<Vec<(Tool, Vec<String>)>> {
+    let central = home.join(".skilltree");
+    let canonical_central = central.canonicalize().unwrap_or(central.clone());
+    let mut result = Vec::new();
+    for tool in fs_util::ALL_TOOLS {
+        let dir = home.join(tool.skills_subdir());
+        if !dir.exists() {
+            continue;
+        }
+        let mut unmanaged = Vec::new();
+        for entry in fs::read_dir(&dir)? {
+            let entry = entry?;
+            let name = entry.file_name().to_string_lossy().into_owned();
+            if name.starts_with('.') {
+                continue;
+            }
+            if is_skilltree_managed(&entry.path(), &canonical_central.join(&name)) {
+                continue;
+            }
+            unmanaged.push(name);
+        }
+        unmanaged.sort();
+        if !unmanaged.is_empty() {
+            result.push((tool, unmanaged));
+        }
+    }
+    Ok(result)
+}
+
+/// Check if a path is a symlink whose target resolves to the expected central path.
+fn is_skilltree_managed(path: &Path, expected_central: &Path) -> bool {
+    let meta = match fs::symlink_metadata(path) {
+        Ok(m) => m,
+        Err(_) => return false,
+    };
+    if !meta.file_type().is_symlink() {
+        return false;
+    }
+    match path.canonicalize() {
+        Ok(actual) => actual == *expected_central,
+        Err(_) => false,
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -151,5 +197,74 @@ mod tests {
         let tmp = TempDir::new().unwrap();
         let linked = scan_linked_skills(tmp.path(), Tool::Claude);
         assert!(linked.is_empty());
+    }
+
+    #[test]
+    fn unmanaged_detects_real_dirs_in_claude() {
+        let home = TempDir::new().unwrap();
+        let claude_skills = home.path().join(".claude").join("skills");
+        fs::create_dir_all(&claude_skills).unwrap();
+        fs::create_dir(claude_skills.join("my-skill")).unwrap();
+
+        let result = scan_unmanaged_skills(home.path()).unwrap();
+        assert_eq!(result.len(), 1);
+        assert_eq!(result[0].0, Tool::Claude);
+        assert_eq!(result[0].1, vec!["my-skill"]);
+    }
+
+    #[test]
+    #[cfg(unix)]
+    fn unmanaged_detects_non_skilltree_symlinks() {
+        let home = TempDir::new().unwrap();
+        let external_target = TempDir::new().unwrap();
+        let claude_skills = home.path().join(".claude").join("skills");
+        fs::create_dir_all(&claude_skills).unwrap();
+        // Symlink pointing outside ~/.skilltree/ → unmanaged
+        symlink(external_target.path(), claude_skills.join("external-skill")).unwrap();
+
+        let result = scan_unmanaged_skills(home.path()).unwrap();
+        assert_eq!(result.len(), 1);
+        assert_eq!(result[0].1, vec!["external-skill"]);
+    }
+
+    #[test]
+    #[cfg(unix)]
+    fn unmanaged_ignores_skilltree_symlinks() {
+        let home = TempDir::new().unwrap();
+        let central = home.path().join(".skilltree");
+        let central_skill = central.join("my-skill");
+        fs::create_dir_all(&central_skill).unwrap();
+        let claude_skills = home.path().join(".claude").join("skills");
+        fs::create_dir_all(&claude_skills).unwrap();
+        // Symlink pointing to ~/.skilltree/my-skill → managed
+        symlink(&central_skill, claude_skills.join("my-skill")).unwrap();
+
+        let result = scan_unmanaged_skills(home.path()).unwrap();
+        assert!(result.is_empty());
+    }
+
+    #[test]
+    fn unmanaged_detects_in_both_tools() {
+        let home = TempDir::new().unwrap();
+        let claude_skills = home.path().join(".claude").join("skills");
+        let codex_skills = home.path().join(".codex").join("skills");
+        fs::create_dir_all(&claude_skills).unwrap();
+        fs::create_dir_all(&codex_skills).unwrap();
+        fs::create_dir(claude_skills.join("skill-a")).unwrap();
+        fs::create_dir(codex_skills.join("skill-b")).unwrap();
+
+        let result = scan_unmanaged_skills(home.path()).unwrap();
+        assert_eq!(result.len(), 2);
+        assert_eq!(result[0].0, Tool::Claude);
+        assert_eq!(result[0].1, vec!["skill-a"]);
+        assert_eq!(result[1].0, Tool::Codex);
+        assert_eq!(result[1].1, vec!["skill-b"]);
+    }
+
+    #[test]
+    fn unmanaged_returns_empty_when_clean() {
+        let home = TempDir::new().unwrap();
+        let result = scan_unmanaged_skills(home.path()).unwrap();
+        assert!(result.is_empty());
     }
 }

@@ -4,7 +4,7 @@ use std::path::Path;
 use anyhow::{Context, Result};
 
 use crate::config::Paths;
-use crate::fs_util::{Tool, ALL_TOOLS};
+use crate::fs_util::{Tool, LINKABLE_TOOLS};
 use crate::scanner;
 use crate::yaml;
 
@@ -23,7 +23,7 @@ fn build_link_map(project_paths: &[String]) -> BTreeMap<String, Vec<ProjectLink>
         let project_path = Path::new(project);
         let name = crate::fs_util::basename(project).to_string();
 
-        for tool in &ALL_TOOLS {
+        for tool in &LINKABLE_TOOLS {
             for skill in scanner::scan_linked_skills(project_path, *tool) {
                 raw.entry(skill)
                     .or_default()

@@ -5,8 +5,7 @@ use anyhow::{Context, Result};
 
 #[derive(Debug, Clone)]
 pub struct Paths {
-    /// Legacy ~/.claude/skills (migration source)
-    pub skills_dir: PathBuf,
+    pub home_dir: PathBuf,
     /// ~/.skilltree/
     pub skill_tree_dir: PathBuf,
     pub skills_yaml: PathBuf,
@@ -21,7 +20,7 @@ impl Paths {
         let link_skills_sh = skill_tree.join("link-skills.sh");
         let skill_lock_json = skill_tree.join(".skill-lock.json");
         Self {
-            skills_dir: home.join(".claude").join("skills"),
+            home_dir: home.to_path_buf(),
             skill_tree_dir: skill_tree,
             skills_yaml,
             link_skills_sh,

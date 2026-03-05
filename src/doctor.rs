@@ -100,11 +100,69 @@ pub fn run(paths: &Paths, fix: bool, project_paths: &[String]) -> Result<()> {
         }
     }
 
-    // 4. Broken symlinks in projects
+    // 4. Unmanaged skills in tool-specific directories
+    let unmanaged = scanner::scan_unmanaged_skills(&paths.home_dir)?;
+    if unmanaged.is_empty() {
+        println!("  \u{2713} No unmanaged skills in tool directories");
+    } else {
+        const YELLOW: &str = "\x1b[33m";
+        const YELLOW_BOLD: &str = "\x1b[33;1m";
+        const RESET: &str = "\x1b[0m";
+
+        println!();
+        println!("  {YELLOW_BOLD}\u{26a0}\u{26a0}\u{26a0}  Unmanaged skills detected:{RESET}");
+        println!("  {YELLOW}─{}{RESET}", "─".repeat(49));
+        for (tool, names) in &unmanaged {
+            let dir = paths.home_dir.join(tool.skills_subdir());
+            println!(
+                "  {YELLOW}{} ({} skill(s)):{RESET}",
+                dir.display(),
+                names.len()
+            );
+            for name in names {
+                println!("  {YELLOW}    - {name}{RESET}");
+                issues += 1;
+            }
+        }
+        println!("  {YELLOW}─{}{RESET}", "─".repeat(49));
+        if fix {
+            let central = &paths.skill_tree_dir;
+            for (tool, names) in &unmanaged {
+                let dir = paths.home_dir.join(tool.skills_subdir());
+                for name in names {
+                    let src = dir.join(name);
+                    let dst = central.join(name);
+                    if !dst.exists() {
+                        let real_src = src.canonicalize().unwrap_or_else(|_| src.clone());
+                        if real_src.is_dir() {
+                            fs_util::copy_dir_recursive(&real_src, &dst)?;
+                        } else if real_src.is_file() {
+                            fs::create_dir_all(&dst)?;
+                            fs::copy(&real_src, dst.join(real_src.file_name().unwrap()))?;
+                        }
+                    }
+                    fs_util::remove_entry(&src)?;
+                    fs_util::create_symlink(&dst, &src)?;
+                    if !yaml_map.contains_key(name) {
+                        yaml_map.insert(name.clone(), Vec::new());
+                    }
+                    println!("    Fixed: {name} → adopted into skilltree");
+                }
+            }
+            yaml::write_skills_yaml(&paths.skills_yaml, &yaml_map)?;
+        } else {
+            println!(
+                "  {YELLOW}Run `skilltree init` or `skilltree doctor --fix` to adopt them.{RESET}"
+            );
+        }
+        println!();
+    }
+
+    // 5. Broken symlinks in projects
     let mut found_broken = false;
     for project in project_paths {
         let project_path = Path::new(project);
-        for tool in fs_util::ALL_TOOLS {
+        for tool in fs_util::LINKABLE_TOOLS {
             let skills_dir = fs_util::project_skills_dir(project_path, tool);
             let entries = match fs::read_dir(&skills_dir) {
                 Ok(e) => e,
@@ -264,5 +322,86 @@ mod tests {
 
         // Broken symlink should be removed
         assert!(!skills_dir.join("broken-skill").symlink_metadata().is_ok());
+    }
+
+    #[test]
+    fn doctor_detects_unmanaged_skills() {
+        let (_home, paths) = setup_paths();
+        let map = yaml::SkillTagMap::new();
+        yaml::write_skills_yaml(&paths.skills_yaml, &map).unwrap();
+
+        // Place a real directory in ~/.claude/skills/
+        let claude_skills = paths.home_dir.join(".claude").join("skills");
+        fs::create_dir_all(&claude_skills).unwrap();
+        fs::create_dir(claude_skills.join("rogue-skill")).unwrap();
+
+        let result = run(&paths, false, &[]);
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn doctor_fix_unmanaged_real_dir() {
+        let (_home, paths) = setup_paths();
+        let map = yaml::SkillTagMap::new();
+        yaml::write_skills_yaml(&paths.skills_yaml, &map).unwrap();
+
+        let claude_skills = paths.home_dir.join(".claude").join("skills");
+        fs::create_dir_all(&claude_skills).unwrap();
+        let skill_dir = claude_skills.join("rogue-skill");
+        fs::create_dir(&skill_dir).unwrap();
+        fs::write(skill_dir.join("SKILL.md"), "content").unwrap();
+
+        run(&paths, true, &[]).unwrap();
+
+        // Skill moved to central
+        assert!(paths
+            .skill_tree_dir
+            .join("rogue-skill")
+            .join("SKILL.md")
+            .exists());
+        // Original replaced with symlink
+        let meta = fs::symlink_metadata(&skill_dir).unwrap();
+        assert!(meta.file_type().is_symlink());
+        // Registered in yaml
+        let updated = yaml::read_skills_yaml(&paths.skills_yaml).unwrap();
+        assert!(updated.contains_key("rogue-skill"));
+    }
+
+    #[test]
+    #[cfg(unix)]
+    fn doctor_fix_unmanaged_external_symlink() {
+        use std::os::unix::fs::symlink;
+
+        let (_home, paths) = setup_paths();
+        let map = yaml::SkillTagMap::new();
+        yaml::write_skills_yaml(&paths.skills_yaml, &map).unwrap();
+
+        // Create an external skill directory
+        let external = TempDir::new().unwrap();
+        let ext_skill = external.path().join("ext-skill");
+        fs::create_dir(&ext_skill).unwrap();
+        fs::write(ext_skill.join("SKILL.md"), "external").unwrap();
+
+        // Symlink from ~/.claude/skills/ to external
+        let claude_skills = paths.home_dir.join(".claude").join("skills");
+        fs::create_dir_all(&claude_skills).unwrap();
+        symlink(&ext_skill, claude_skills.join("ext-skill")).unwrap();
+
+        run(&paths, true, &[]).unwrap();
+
+        // Skill copied to central
+        assert!(paths
+            .skill_tree_dir
+            .join("ext-skill")
+            .join("SKILL.md")
+            .exists());
+        // Original symlink replaced with skilltree symlink
+        let meta = fs::symlink_metadata(claude_skills.join("ext-skill")).unwrap();
+        assert!(meta.file_type().is_symlink());
+        let target = fs::read_link(claude_skills.join("ext-skill")).unwrap();
+        assert_eq!(target, paths.skill_tree_dir.join("ext-skill"));
+        // Registered in yaml
+        let updated = yaml::read_skills_yaml(&paths.skills_yaml).unwrap();
+        assert!(updated.contains_key("ext-skill"));
     }
 }

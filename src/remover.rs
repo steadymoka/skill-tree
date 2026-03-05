@@ -4,7 +4,7 @@ use std::path::Path;
 use anyhow::Result;
 
 use crate::config::Paths;
-use crate::fs_util::ALL_TOOLS;
+use crate::fs_util::LINKABLE_TOOLS;
 use crate::linker;
 use crate::lock;
 use crate::yaml;
@@ -21,7 +21,7 @@ pub fn remove_skill(paths: &Paths, name: &str, project_paths: &[String]) -> Resu
     // Clean up symlinks from all projects (both claude and codex)
     for project in project_paths {
         let project_path = Path::new(project);
-        for tool in &ALL_TOOLS {
+        for tool in &LINKABLE_TOOLS {
             let _ = linker::unlink_skill(project_path, name, *tool);
         }
     }

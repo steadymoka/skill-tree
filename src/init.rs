@@ -55,18 +55,15 @@ pub fn ensure_initialized(paths: &Paths) -> Result<()> {
 
 pub fn initialize(paths: &Paths) -> Result<()> {
     let central = &paths.skill_tree_dir;
-    let skills = &paths.skills_dir;
     let yaml_path = &paths.skills_yaml;
     let sh_path = &paths.link_skills_sh;
 
     // 0. Migrate legacy ~/.claude/skills-central/ → ~/.skilltree/
-    if let Some(parent) = skills.parent() {
-        let legacy = parent.join("skills-central");
-        if legacy.exists() && !central.exists() {
-            fs::rename(&legacy, central)
-                .context("failed to migrate ~/.claude/skills-central/ to ~/.skilltree/")?;
-            println!("Migrated: ~/.claude/skills-central/ → ~/.skilltree/");
-        }
+    let legacy = paths.home_dir.join(".claude").join("skills-central");
+    if legacy.exists() && !central.exists() {
+        fs::rename(&legacy, central)
+            .context("failed to migrate ~/.claude/skills-central/ to ~/.skilltree/")?;
+        println!("Migrated: ~/.claude/skills-central/ → ~/.skilltree/");
     }
 
     // 1. Create ~/.skilltree/ if needed
@@ -75,12 +72,16 @@ pub fn initialize(paths: &Paths) -> Result<()> {
         println!("Created {}", central.display());
     }
 
-    // 2. Move real directories from ~/.claude/skills/ to ~/.skilltree/
+    // 2. Move real directories from tool skills dirs to ~/.skilltree/
     //    and leave symlinks in their place
-    if skills.exists() {
-        let real_dirs = scanner::scan_real_dirs(skills)?;
+    for tool in fs_util::ALL_TOOLS {
+        let tool_skills = paths.home_dir.join(tool.skills_subdir());
+        if !tool_skills.exists() {
+            continue;
+        }
+        let real_dirs = scanner::scan_real_dirs(&tool_skills)?;
         for name in &real_dirs {
-            let src = skills.join(name);
+            let src = tool_skills.join(name);
             let dst = central.join(name);
             if dst.exists() {
                 continue;
@@ -88,8 +89,12 @@ pub fn initialize(paths: &Paths) -> Result<()> {
             fs::rename(&src, &dst)
                 .with_context(|| format!("failed to move {} to skilltree", name))?;
             fs_util::create_symlink(&dst, &src)
-                .with_context(|| format!("failed to create global symlink for {}", name))?;
-            println!("Moved: {} → skilltree (symlink left in skills/)", name);
+                .with_context(|| format!("failed to create symlink for {}", name))?;
+            println!(
+                "Moved: {} → skilltree (symlink left in {}/)",
+                name,
+                tool.skills_subdir()
+            );
         }
     }
 
@@ -164,7 +169,7 @@ mod tests {
         let tmp = TempDir::new().unwrap();
         let paths = test_paths(&tmp);
 
-        let skill_dir = paths.skills_dir.join("my-skill");
+        let skill_dir = paths.home_dir.join(".claude/skills").join("my-skill");
         fs::create_dir_all(&skill_dir).unwrap();
         fs::write(
             skill_dir.join("SKILL.md"),
@@ -180,7 +185,8 @@ mod tests {
             .join("SKILL.md")
             .exists());
 
-        let link_meta = fs::symlink_metadata(paths.skills_dir.join("my-skill")).unwrap();
+        let link_meta =
+            fs::symlink_metadata(paths.home_dir.join(".claude/skills").join("my-skill")).unwrap();
         assert!(link_meta.file_type().is_symlink());
 
         let map = yaml::read_skills_yaml(&paths.skills_yaml).unwrap();
@@ -265,12 +271,13 @@ mod tests {
         let tmp = TempDir::new().unwrap();
         let paths = test_paths(&tmp);
 
-        fs::create_dir_all(paths.skills_dir.join("skill-a")).unwrap();
+        fs::create_dir_all(paths.home_dir.join(".claude/skills").join("skill-a")).unwrap();
         fs::create_dir_all(paths.skill_tree_dir.join("skill-a")).unwrap();
 
         initialize(&paths).unwrap();
 
-        let meta = fs::symlink_metadata(paths.skills_dir.join("skill-a")).unwrap();
+        let meta =
+            fs::symlink_metadata(paths.home_dir.join(".claude/skills").join("skill-a")).unwrap();
         assert!(!meta.file_type().is_symlink());
     }
 }

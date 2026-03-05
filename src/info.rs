@@ -3,7 +3,7 @@ use std::path::{Path, PathBuf};
 use anyhow::Result;
 
 use crate::config::Paths;
-use crate::fs_util::{self, Tool, ALL_TOOLS};
+use crate::fs_util::{self, Tool, LINKABLE_TOOLS};
 use crate::lock::{self, SkillLockEntry};
 use crate::yaml;
 
@@ -40,7 +40,7 @@ pub fn get_skill_info(paths: &Paths, name: &str, project_paths: &[String]) -> Re
     for project in project_paths {
         let project_path = Path::new(project);
         let mut tools = Vec::new();
-        for tool in &ALL_TOOLS {
+        for tool in &LINKABLE_TOOLS {
             let link_path = fs_util::project_skills_dir(project_path, *tool).join(name);
             if let Ok(meta) = std::fs::symlink_metadata(&link_path) {
                 if meta.file_type().is_symlink() {

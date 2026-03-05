@@ -197,27 +197,7 @@ fn list_skill_dirs(dir: &Path) -> Vec<String> {
 }
 
 pub fn copy_dir_recursive(src: &Path, dst: &Path) -> Result<()> {
-    fs::create_dir_all(dst)?;
-    for entry in fs::read_dir(src)? {
-        let entry = entry?;
-        let file_name = entry.file_name();
-        let name = file_name.to_string_lossy();
-
-        if name == ".git" {
-            continue;
-        }
-
-        let src_path = entry.path();
-        let dst_path = dst.join(&*name);
-        let file_type = entry.file_type()?;
-
-        if file_type.is_dir() {
-            copy_dir_recursive(&src_path, &dst_path)?;
-        } else {
-            fs::copy(&src_path, &dst_path)?;
-        }
-    }
-    Ok(())
+    crate::fs_util::copy_dir_recursive(src, dst)
 }
 
 pub fn github_url(owner: &str, repo: &str) -> String {
