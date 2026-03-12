@@ -215,7 +215,7 @@ pub fn github_url(owner: &str, repo: &str) -> String {
 fn make_temp_dir() -> Result<PathBuf> {
     let dir = tempfile::tempdir()
         .context("failed to create temporary directory")?
-        .into_path();
+        .keep();
     Ok(dir)
 }
 
